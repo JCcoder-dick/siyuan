@@ -247,7 +247,30 @@ func ReportFileSysFatalError(err error) {
 }
 
 var checkFileSysStatusLock = sync.Mutex{}
+func renameWithRetry(oldpath, newpath string) error {
+	var err error
+	delays := []time.Duration{
+		100 * time.Millisecond,
+		200 * time.Millisecond,
+		500 * time.Millisecond,
+		1 * time.Second,
+		2 * time.Second,
+	}
 
+	for i := 0; i <= len(delays); i++ {
+		err = os.Rename(oldpath, newpath)
+		if err == nil {
+			return nil
+		}
+
+		if i < len(delays) {
+			logging.LogWarnf("rename [%s] to [%s] failed, retrying: %v", oldpath, newpath, err)
+			time.Sleep(delays[i])
+		}
+	}
+
+	return err
+}
 func CheckFileSysStatus() {
 	if ContainerStd != Container {
 		return
@@ -303,8 +326,8 @@ func checkFileSysStatus() {
 
 		for j := 0; j < 32; j++ {
 			renamed := tmp + "_renamed"
-			if err = os.Rename(tmp, renamed); err != nil {
-				ReportFileSysFatalError(err)
+			if err = renameWithRetry(tmp, renamed); err != nil {
+					ReportFileSysFatalError(err)
 				break
 			}
 
@@ -321,7 +344,7 @@ func checkFileSysStatus() {
 				return
 			}
 
-			if err = os.Rename(renamed, tmp); err != nil {
+			if err = renameWithRetry(renamed, tmp); err != nil {
 				ReportFileSysFatalError(err)
 				return
 			}
