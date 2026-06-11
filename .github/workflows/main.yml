@@ -20,7 +20,7 @@ jobs:
         shell: pwsh
         run: |
           cd kernel
-          go build -o SiYuan-Kernel.exe .
+          go build -tags "fts5" -trimpath -ldflags="-s -w" -o SiYuan-Kernel.exe .
 
       - name: Upload Kernel Artifact
         uses: actions/upload-artifact@v4
